@@ -41,9 +41,12 @@ vignettes/*.pdf
 #The database
 *.accdb
 *.mdb
+#ignore the lacc
+*.laccdb
 
 #CSV files
 *.csv
 
 #folder nicks code
 /Nick_code
+
