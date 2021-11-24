@@ -44,3 +44,6 @@ vignettes/*.pdf
 
 #CSV files
 *.csv
+
+#folder nicks code
+/Nick_code
