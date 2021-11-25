@@ -4,6 +4,9 @@ remotes::install_git("https://github.com/Pacific-salmon-assess/tagFisheryMapping
 library(tagFisheryMapping)
 library(dbplyr)
 library(janitor)
+library(xlsx)
+library(purrr)
+library(writexl)
 
 #' Open CAS Database Connection
 #'
@@ -73,9 +76,22 @@ cwdbrecovery<-tbl(casdb, "CWDBRecovery")
 wiretagcode_unq<-wiretagcode %>% as_tibble() %>% select(TagCode) %>% as.data.frame()
 cwdbrecovery_unq<-cwdbrecovery %>% as_tibble() %>% select(TagCode) %>% as.data.frame()
   
-  
-wiretagcode %>% as_tibble() %>% get_dupes(TagCode)
-cwdbrecovery %>% as_tibble() %>% filter(TagCode %notin% wiretagcode_unq$TagCode)
-wiretagcode %>% as_tibble() %>% filter(TagCode %notin% cwdbrecovery_unq$TagCode)
+#Explorations
+wire_dupes<-wiretagcode %>% as_tibble() %>% get_dupes(TagCode)
+cwd_notin_wire<-cwdbrecovery %>% as_tibble() %>% filter(TagCode %notin% wiretagcode_unq$TagCode)
+wire_notin_cwb<-wiretagcode %>% as_tibble() %>% filter(TagCode %notin% cwdbrecovery_unq$TagCode)
 
 
+
+#Summary table
+explore_summary <- data.frame(Issue=character(), Count=integer(),
+                 Definition=character(), 
+                 stringsAsFactors=FALSE)
+
+explore_summary <- explore_summary  %>% add_row(Issue="Duplicate WireTagCodes", Count=nrow(wire_dupes), Definition="There are duplicate wiretagcodes in the WireTagCode table") %>% 
+                                        add_row(Issue="CWD not in WireTag", Count=nrow(cwd_notin_wire), Definition="Wire Tag Codes in the CWD Recoveries table but not in the WireTagCode table") %>% 
+                                        add_row(Issue="WireTag not in CWD", Count=nrow(wire_notin_cwb), Definition="Wire Tag Codes in the WireTagCodes table but not in the CWD Recoveries table")
+
+sheet_list<-list(Summary=explore_summary,Wire_Dupes=wire_dupes,CWD_notin_wire=cwd_notin_wire, Wire_notin_CWD=wire_notin_cwb)
+
+writexl::write_xlsx(sheet_list, path="CAS_QC.xlsx")
