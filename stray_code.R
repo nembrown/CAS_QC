@@ -1,3 +1,15 @@
+#' Return an open connection to a CAS database
+#'
+#' @param db_filename File name of the CAS access database
+#'
+#' @return A connection to the database
+#'
+#' @importFrom dplyr %>% select_all as_tibble
+#' @importFrom odbc odbc dbConnect dbGetQuery dbDisconnect
+#'
+#' @export
+
+
 #Functions are generally get something and then when you run it you need to assign to a df
 getCasFisheryTbl <- function(db_conn, stateprov_prefix) {
   fishery_sql <-
