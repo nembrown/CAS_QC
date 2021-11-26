@@ -15,20 +15,6 @@ library(stringr)
 
 # Open database connection ------------------------------------------------
 
-#' Open CAS Database Connection
-#'
-#' Return an open connection to a CAS database
-#'
-#' @param db_filename File name of the CAS access database
-#'
-#' @return A connection to the database
-#'
-#' @importFrom dplyr %>% select_all as_tibble
-#' @importFrom odbc odbc dbConnect dbGetQuery dbDisconnect
-#'
-#' @export
-
-
 openCasConnection <- function(db_filename) {
   if (!requireNamespace("odbc", quietly = TRUE)) {
     stop("The package 'odbc' is needed for this function to work -
@@ -98,3 +84,10 @@ sheet_list<-list(Summary=explore_summary,
                  "8 - TagCodes_in_WTC_notin_CWD"=wire_notin_cwb)
 
 writexl::write_xlsx(sheet_list, path="CAS_QC.xlsx")
+
+
+
+# Pulling only Canadian recoveries
+
+dfo_cwdbrecovery <- cwdbrecovery %>% filter(Agency=="CDFO")
+
