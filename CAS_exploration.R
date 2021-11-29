@@ -3,7 +3,7 @@
 
 library(odbc)
 library(tidyverse)
-remotes::install_git("https://github.com/Pacific-salmon-assess/tagFisheryMapping")
+# remotes::install_git("https://github.com/Pacific-salmon-assess/tagFisheryMapping")
 library(tagFisheryMapping)
 library(dbplyr)
 library(janitor)
@@ -42,6 +42,7 @@ wiretagcode<-tbl(casdb, "WireTagCode")
 cwdbrecovery<-tbl(casdb, "CWDBRecovery")
 
 #some tidying to make the explorations work
+"%notin%" <- Negate("%in%")
 wiretagcode<- wiretagcode %>% as_tibble()
 cwdbrecovery<- cwdbrecovery %>% as_tibble()
 wiretagcode_unq<-wiretagcode %>% select(TagCode) 
@@ -87,7 +88,21 @@ writexl::write_xlsx(sheet_list, path="CAS_QC.xlsx")
 
 
 
-# Pulling only Canadian recoveries
+# MRP to CAS comparisons --------------------------------------------------
+#Open connection to MRP 
+mrp_recoveries<-getDfoTagRecoveries(1950:2022)
 
+#filter MRP database by indicator tags only
+mrp_recoveries_ind<-mrp_recoveries %>% filter(tag_code %in% wiretagcode_unq$TagCode)
+head(mrp_recoveries_ind)
+head(cwdbrecovery)
+
+#Recovery Id and run years in MRP but not in CAS
+mrp_not_CAS_recid<-anti_join(mrp_recoveries_ind, cwdbrecovery, by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))
+
+#Recovery Id and run years in CAS but not in MRP
+CAS_not_MRP_recid<-anti_join(cwdbrecovery, mrp_recoveries_ind, by=c("RecoveryId"="recovery_id","RunYear"= "recovery_year"))
+
+#but what about just dfo recoveries
 dfo_cwdbrecovery <- cwdbrecovery %>% filter(Agency=="CDFO")
-
+dfo_CAS_not_MRP_recid<-anti_join(dfo_cwdbrecovery, mrp_recoveries_ind, by=c("RecoveryId"="recovery_id","RunYear"= "recovery_year"))
