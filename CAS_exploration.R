@@ -111,7 +111,6 @@ mrp_not_CAS_recid<-anti_join(mrp_recoveries_ind, cwdbrecovery, by=c("recovery_id
 #Where are the mismatches the most common?
 mrp_not_CAS_recid_year<- mrp_not_CAS_recid %>% group_by(recovery_year) %>% summarise(n= n()) %>% arrange(desc(n))
 mrp_not_CAS_recid_location<- mrp_not_CAS_recid %>% group_by(rec_location_code) %>% summarise(n= n()) %>% arrange(desc(n))
-mrp_not_CAS_recid_fishery<- mrp_not_CAS_recid %>% group_by(psc_fishery_id) %>% summarise(n= n()) %>% arrange(desc(n))
 
 #Recovery Id and run years in CAS but not in MRP
 CAS_not_MRP_recid<-anti_join(cwdbrecovery, mrp_recoveries_ind, by=c("RecoveryId"="recovery_id","RunYear"= "recovery_year"))
@@ -122,33 +121,6 @@ dfo_CAS_not_MRP_recid<-anti_join(dfo_cwdbrecovery, mrp_recoveries_ind, by=c("Rec
 dfo_CAS_not_MRP_recid_Fishery<- dfo_CAS_not_MRP_recid %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
 dfo_CAS_not_MRP_recid_RecoverySite<- dfo_CAS_not_MRP_recid %>% group_by(RecoverySite) %>% summarise(n= n())%>% arrange(desc(n))
 
-#Summary table
-compare_CAS_MRP_summary <- data.frame(Issue_ID=character(), Issue=character(), Count=integer(),
-                              Definition=character(), 
-                              stringsAsFactors=FALSE)
-
-compare_CAS_MRP_summary  <- compare_CAS_MRP_summary   %>% 
-  add_row(Issue_ID="1", Issue="Recovery id by year in MRP not CAS", Count=nrow(mrp_not_CAS_recid), Definition="Recovery Id and run year combinations that are in MRP database but not in CAS database ") %>% 
-  add_row(Issue_ID="1.1", Issue="Recovery id by year in MRP not CAS - year", Count=nrow(mrp_not_CAS_recid_year), Definition="Recovery Id and run year combinations that are in MRP database but not in CAS database, summarized by year") %>% 
-  add_row(Issue_ID="1.2", Issue="Recovery id by year in MRP not CAS - location", Count=nrow(mrp_not_CAS_recid_location), Definition="Recovery Id and run year combinations that are in MRP database but not in CAS database, summarized by recovery location") %>% 
-  add_row(Issue_ID="1.3", Issue="Recovery id by year in MRP not CAS - fishery", Count=nrow(mrp_not_CAS_recid_fishery), Definition="Recovery Id and run year combinations that are in MRP database but not in CAS database, summarized by psc fishery id") %>% 
-  add_row(Issue_ID="2", Issue="Recovery id by year in CAS not MRP", Count=nrow(CAS_not_MRP_recid), Definition="Recovery Id and run year combinations that are in CAS database but not in MRP database ") %>% 
-  add_row(Issue_ID="3", Issue="Recovery id by year in dfo_CAS not MRP", Count=nrow(dfo_CAS_not_MRP_recid), Definition="Recovery Id and run year combinations that are in the DFO recoveries in the CAS database but not in MRP database ") %>% 
-  add_row(Issue_ID="3.1", Issue="Recovery id by year in dfo_CAS not MRP - fishery", Count=nrow(dfo_CAS_not_MRP_recid_Fishery), Definition="Recovery Id and run year combinations that are in the DFO recoveries in the CAS database but not in MRP database, summarized by Fishery ") %>% 
-  add_row(Issue_ID="3.2", Issue="Recovery id by year in dfo_CAS not MRP - recovery site", Count=nrow(dfo_CAS_not_MRP_recid_RecoverySite), Definition="Recovery Id and run year combinations that are in the DFO recoveries in the CAS database but not in MRP database, summarized by recovery site ") 
-
-sheet_list_compare_CAS_MRP<-list(Summary=compare_CAS_MRP_summary,
-                 "1 - RecID_MRP_not_CAS"= mrp_not_CAS_recid,
-                 "1.1 - year"= mrp_not_CAS_recid_year,
-                 "1.2 - location"= mrp_not_CAS_recid_location,
-                 "1.3 - fishery"= mrp_not_CAS_recid_fishery,
-                 "2 - RecID_CAS_not_MRP"= CAS_not_MRP_recid, 
-                 "3 - RecID_dfoCAS_not_MRP"= dfo_CAS_not_MRP_recid, 
-                 "3.1 - fishery"= dfo_CAS_not_MRP_recid_Fishery,
-                 "3.2 - location"= dfo_CAS_not_MRP_recid_RecoverySite)
-
-writexl::write_xlsx(sheet_list_compare_CAS_MRP, path="MRP_vs_CAS_QC.xlsx")
-
 
 # What's altered ----------------------------------------------------------
 #Work only with the ones in MRP that are in CAS
@@ -157,12 +129,94 @@ mrp_yes_CAS_recid<- anti_join(mrp_recoveries_ind, mrp_not_CAS_recid, by=c("recov
 #and Work only with the ones in CAS that are in MRP
 CAS_yes_MRP_recid<-anti_join(cwdbrecovery, CAS_not_MRP_recid, by=c("RecoveryId","RunYear"))
 
-#which ones in MRP have a different value for the cwt estimate than the CAS database
+# Mismtach: CWT_estimate
+#which recovery id/year combos in MRP have a different value for the cwt estimate than the CAS database
 mrp_CAS_estimate_mismatch<-anti_join(mrp_yes_CAS_recid,CAS_yes_MRP_recid, by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear", "cwt_estimate"="AdjustedEstimatedNumber") )
 
-mrp_CAS_estimate_mismatch_trim<- mrp_CAS_estimate_mismatch %>% select(recovery_id, recovery_year, cwt_estimate)
-mrp_CAS_estimate_mismatch_trim_join<-left_join(mrp_CAS_estimate_mismatch_trim, CAS_yes_MRP_recid %>% select (RecoveryId, RunYear, AdjustedEstimatedNumber), by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))
-mrp_CAS_estimate_mismatch_trim_join_diff<- mrp_CAS_estimate_mismatch_trim_join %>% add_column(diff_estimates= mrp_CAS_estimate_mismatch_trim_join$AdjustedEstimatedNumber - mrp_CAS_estimate_mismatch_trim_join$cwt_estimate) %>% arrange(desc(diff_estimates))
+# Create a table with just recovery id, year and the two estimates, sorted by the largest difference between estimates
+mrp_CAS_estimate_mismatch_trim<- mrp_CAS_estimate_mismatch %>% select(recovery_id, recovery_year, tag_code,rec_location_code, cwt_estimate )
+mrp_CAS_estimate_mismatch_trim_join<-left_join(mrp_CAS_estimate_mismatch_trim, CAS_yes_MRP_recid %>% select (RecoveryId, RunYear, Fishery, AdjustedEstimatedNumber), by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))
+mrp_CAS_estimate_mis<- mrp_CAS_estimate_mismatch_trim_join %>% add_column(diff_estimates= abs(mrp_CAS_estimate_mismatch_trim_join$AdjustedEstimatedNumber - mrp_CAS_estimate_mismatch_trim_join$cwt_estimate)) %>%  relocate(Fishery, .before = cwt_estimate) %>% arrange(desc(diff_estimates))
 
-View(mrp_CAS_estimate_mismatch_trim)
-View(CAS_yes_MRP_recid)
+#Where are the mismatches the most common?  
+mrp_CAS_estimate_mis_Fishery<- mrp_CAS_estimate_mis %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
+mrp_CAS_estimate_mis_RecoverySite<-mrp_CAS_estimate_mis %>% group_by(rec_location_code) %>% summarise(n= n())%>% arrange(desc(n))
+mrp_CAS_estimate_mis_recovery_year<-mrp_CAS_estimate_mis %>% group_by(recovery_year) %>% summarise(n= n())%>% arrange(desc(n))
+
+# Mismatch: Location
+# Which recovery id/year combos in MRP have a different value for the recovery location than in the CAS database
+mrp_CAS_location_mismatch<-anti_join(mrp_yes_CAS_recid,CAS_yes_MRP_recid, by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear", "rec_location_code"="RecoverySite") )
+
+# Create a table to lay out the differences more easily
+mrp_CAS_location_mismatch_trim<- mrp_CAS_location_mismatch %>% select(recovery_id, recovery_year, tag_code,rec_location_code)
+mrp_CAS_location_mismatch_trim_join<-left_join(mrp_CAS_location_mismatch_trim, CAS_yes_MRP_recid %>% select (RecoveryId, RunYear, Fishery, RecoverySite), by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))%>%  relocate(Fishery, .before = rec_location_code)
+mrp_CAS_location_mismatch_trim_join
+
+#Where are the mismatches the most common?  
+mrp_CAS_location_mis_Fishery<- mrp_CAS_location_mismatch_trim_join %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
+mrp_CAS_location_mis_recovery_year<-mrp_CAS_location_mismatch_trim_join %>% group_by(recovery_year) %>% summarise(n= n())%>% arrange(desc(n))
+
+# Mismatch: PSC fishery ID
+# Which recovery id/year combos in MRP have a different value for the psc fishery ID than in the CAS database
+CAS_yes_MRP_recid$CWDBFishery<-as.integer(CAS_yes_MRP_recid$CWDBFishery)
+mrp_CAS_pscfishery_mismatch<-anti_join(mrp_yes_CAS_recid,CAS_yes_MRP_recid, by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear", "psc_fishery_id"="CWDBFishery"))
+
+# Create a table to lay out the differences more easily
+mrp_CAS_pscfishery_mismatch_trim<- mrp_CAS_pscfishery_mismatch %>% select(recovery_id, recovery_year, tag_code,psc_fishery_id)
+mrp_CAS_pscfishery_mismatch_trim_join<-left_join(mrp_CAS_pscfishery_mismatch_trim, CAS_yes_MRP_recid %>% select (RecoveryId, RunYear, Fishery, CWDBFishery), by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))%>%  relocate(Fishery, .before = psc_fishery_id)
+mrp_CAS_pscfishery_mismatch_trim_join
+
+# Where are the mismatches most common?
+mrp_CAS_pscfishery_mis_Fishery<- mrp_CAS_pscfishery_mismatch_trim_join %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
+
+
+#Summary table
+compare_CAS_MRP_summary <- data.frame(Issue_ID=character(), Issue=character(), Count=integer(),
+                                      Definition=character(), 
+                                      stringsAsFactors=FALSE)
+
+compare_CAS_MRP_summary  <- compare_CAS_MRP_summary   %>% 
+  add_row(Issue_ID="1", Issue="Recovery id by year in MRP not CAS", Count=nrow(mrp_not_CAS_recid), Definition="Recovery Id and run year combinations that are in MRP database but not in CAS database ") %>% 
+  add_row(Issue_ID="1.1", Issue="Recovery id by year in MRP not CAS - year", Count=nrow(mrp_not_CAS_recid_year), Definition="Recovery Id and run year combinations that are in MRP database but not in CAS database, summarized by year") %>% 
+  add_row(Issue_ID="1.2", Issue="Recovery id by year in MRP not CAS - location", Count=nrow(mrp_not_CAS_recid_location), Definition="Recovery Id and run year combinations that are in MRP database but not in CAS database, summarized by recovery location") %>% 
+  add_row(Issue_ID="2", Issue="Recovery id by year in CAS not MRP", Count=nrow(CAS_not_MRP_recid), Definition="Recovery Id and run year combinations that are in CAS database but not in MRP database ") %>% 
+  add_row(Issue_ID="3", Issue="Recovery id by year in dfo_CAS not MRP", Count=nrow(dfo_CAS_not_MRP_recid), Definition="Recovery Id and run year combinations that are in the DFO recoveries in the CAS database but not in MRP database ") %>% 
+  add_row(Issue_ID="3.1", Issue="Recovery id by year in dfo_CAS not MRP - fishery", Count=nrow(dfo_CAS_not_MRP_recid_Fishery), Definition="Recovery Id and run year combinations that are in the DFO recoveries in the CAS database but not in MRP database, summarized by Fishery ") %>% 
+  add_row(Issue_ID="3.2", Issue="Recovery id by year in dfo_CAS not MRP - recovery site", Count=nrow(dfo_CAS_not_MRP_recid_RecoverySite), Definition="Recovery Id and run year combinations that are in the DFO recoveries in the CAS database but not in MRP database, summarized by recovery site ") %>% 
+  add_row(Issue_ID="4", Issue="CWT estimate mismatch value MRP and CAS", Count=nrow(mrp_CAS_estimate_mismatch), Definition="For a given pair of recovery Id and year, the CWT estimate in MRP is not equal to AdjustedEstimatedNumber in CAS") %>% 
+  add_row(Issue_ID="4.1", Issue="CWT estimate mismatch value MRP and CAS - comparison table", Count=nrow(mrp_CAS_estimate_mis), Definition="Smaller table with CWT estimate in MRP and AdjustedEstimatedNumber in CAS, sorted by the absolute difference between the two values") %>% 
+  add_row(Issue_ID="4.2", Issue="CWT estimate mismatch value MRP and CAS - fishery", Count=nrow(mrp_CAS_estimate_mis_Fishery), Definition="Mismatches in CWT estimate and AdjustedEstimatedNumber summarized by fishery") %>% 
+  add_row(Issue_ID="4.3", Issue="CWT estimate mismatch value MRP and CAS - location", Count=nrow(mrp_CAS_estimate_mis_RecoverySite), Definition="Mismatches in CWT estimate and AdjustedEstimatedNumber summarized by recovery location") %>% 
+  add_row(Issue_ID="4.4", Issue="CWT estimate mismatch value MRP and CAS - year", Count=nrow(mrp_CAS_estimate_mis_recovery_year), Definition="Mismatches in CWT estimate and AdjustedEstimatedNumber summarized by recovery year") %>% 
+  add_row(Issue_ID="5", Issue="Location mismatch value MRP and CAS", Count=nrow(mrp_CAS_location_mismatch), Definition="Mismatches in rec_location_code in MRP and RecoverySite in CAS") %>% 
+  add_row(Issue_ID="5.1", Issue="Location mismatch value MRP and CAS - comparison table", Count=nrow(mrp_CAS_location_mismatch), Definition="Mismatches in rec_location_code in MRP and RecoverySite in CAS, comparison table") %>% 
+  add_row(Issue_ID="5.2", Issue="Location mismatch value MRP and CAS - fishery", Count=nrow(mrp_CAS_location_mis_Fishery), Definition="Mismatches in rec_location_code in MRP and RecoverySite in CAS, summarized by fishery") %>% 
+  add_row(Issue_ID="5.3", Issue="Location mismatch value MRP and CAS - year", Count=nrow(mrp_CAS_location_mis_recovery_year), Definition="Mismatches in rec_location_code in MRP and RecoverySite in CAS, summarized by recovery year") %>% 
+  add_row(Issue_ID="6", Issue="psc fishery id mismatch value MRP and CAS", Count=nrow(mrp_CAS_pscfishery_mismatch), Definition="Mismatches in psc_fishery_id in MRP and CWDBFishery in CAS") %>% 
+  add_row(Issue_ID="6.1", Issue="psc fishery id mismatch value MRP and CAS - comparison table", Count=nrow(mrp_CAS_pscfishery_mismatch_trim_join), Definition="Mismatches in psc_fishery_id in MRP and CWDBFishery in CAS, comparison table") %>% 
+  add_row(Issue_ID="6.2", Issue="psc fishery id mismatch value MRP and CAS - fishery", Count=nrow(mrp_CAS_pscfishery_mis_Fishery), Definition="Mismatches in psc_fishery_id in MRP and CWDBFishery in CAS, summarized by fishery")
+    
+  
+sheet_list_compare_CAS_MRP<-list(Summary=compare_CAS_MRP_summary,
+                                 "1 - RecID_MRP_not_CAS"= mrp_not_CAS_recid,
+                                 "1.1 - year"= mrp_not_CAS_recid_year,
+                                 "1.2 - location"= mrp_not_CAS_recid_location,
+                                 "2 - RecID_CAS_not_MRP"= CAS_not_MRP_recid, 
+                                 "3 - RecID_dfoCAS_not_MRP"= dfo_CAS_not_MRP_recid, 
+                                 "3.1 - fishery"= dfo_CAS_not_MRP_recid_Fishery,
+                                 "3.2 - location"= dfo_CAS_not_MRP_recid_RecoverySite, 
+                                 "4 - CWT estimate mismatch"= mrp_CAS_estimate_mismatch, 
+                                 "4.1 - differences"= mrp_CAS_estimate_mis, 
+                                 "4.2 - fishery"= mrp_CAS_estimate_mis_Fishery, 
+                                 "4.3 - location"= mrp_CAS_estimate_mis_RecoverySite, 
+                                 "4.4 - year"= mrp_CAS_estimate_mis_recovery_year, 
+                                 "5 - Location mismatch" = mrp_CAS_location_mismatch, 
+                                 "5.1 - comparison" = mrp_CAS_location_mismatch_trim_join,
+                                 "5.2 - fishery" = mrp_CAS_location_mis_Fishery, 
+                                 "5.3 - year" = mrp_CAS_location_mis_recovery_year, 
+                                 "6 - Psc fishery mismatch" = mrp_CAS_pscfishery_mismatch, 
+                                 "6.1 - comparison" = mrp_CAS_pscfishery_mismatch_trim_join, 
+                                 "6.2 - fishery" = mrp_CAS_pscfishery_mis_Fishery)
+
+writexl::write_xlsx(sheet_list_compare_CAS_MRP, path="MRP_vs_CAS_QC.xlsx")
+
