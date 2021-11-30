@@ -105,19 +105,19 @@ dfo_cwdbrecovery <- cwdbrecovery %>% filter(Agency=="CDFO")
 
 # What's missing ----------------------------------------------------------
 
-#Recovery Id and run years in MRP but not in CAS
+#Issue 1 Recovery Id and run years in MRP but not in CAS
 mrp_not_CAS_recid<-anti_join(mrp_recoveries_ind, cwdbrecovery, by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))
 
-#Where are the mismatches the most common?
+#1.1 and 1.2 Where are the mismatches the most common?
 mrp_not_CAS_recid_year<- mrp_not_CAS_recid %>% group_by(recovery_year) %>% summarise(n= n()) %>% arrange(desc(n))
 mrp_not_CAS_recid_location<- mrp_not_CAS_recid %>% group_by(rec_location_code) %>% summarise(n= n()) %>% arrange(desc(n))
 
-#Recovery Id and run years in CAS but not in MRP
+#Issue 2 Recovery Id and run years in CAS but not in MRP
 CAS_not_MRP_recid<-anti_join(cwdbrecovery, mrp_recoveries_ind, by=c("RecoveryId"="recovery_id","RunYear"= "recovery_year"))
-#This returns a lot but I think we need to compare to just DFO recoveries because that's all that's in MRP
+#Issue 3 This returns a lot but I think we need to compare to just DFO recoveries because that's all that's in MRP
 dfo_CAS_not_MRP_recid<-anti_join(dfo_cwdbrecovery, mrp_recoveries_ind, by=c("RecoveryId"="recovery_id","RunYear"= "recovery_year"))
 
-#Where are the mismatches the most common?  
+#3.1 and 3.2 Where are the mismatches the most common?  
 dfo_CAS_not_MRP_recid_Fishery<- dfo_CAS_not_MRP_recid %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
 dfo_CAS_not_MRP_recid_RecoverySite<- dfo_CAS_not_MRP_recid %>% group_by(RecoverySite) %>% summarise(n= n())%>% arrange(desc(n))
 
@@ -129,45 +129,48 @@ mrp_yes_CAS_recid<- anti_join(mrp_recoveries_ind, mrp_not_CAS_recid, by=c("recov
 #and Work only with the ones in CAS that are in MRP
 CAS_yes_MRP_recid<-anti_join(cwdbrecovery, CAS_not_MRP_recid, by=c("RecoveryId","RunYear"))
 
-# Mismtach: CWT_estimate
+# Issue 4 Mismtach: CWT_estimate
 #which recovery id/year combos in MRP have a different value for the cwt estimate than the CAS database
 mrp_CAS_estimate_mismatch<-anti_join(mrp_yes_CAS_recid,CAS_yes_MRP_recid, by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear", "cwt_estimate"="AdjustedEstimatedNumber") )
 
-# Create a table with just recovery id, year and the two estimates, sorted by the largest difference between estimates
+# 4.1 Create a table with just recovery id, year and the two estimates, sorted by the largest difference between estimates
 mrp_CAS_estimate_mismatch_trim<- mrp_CAS_estimate_mismatch %>% select(recovery_id, recovery_year, tag_code,rec_location_code, cwt_estimate )
 mrp_CAS_estimate_mismatch_trim_join<-left_join(mrp_CAS_estimate_mismatch_trim, CAS_yes_MRP_recid %>% select (RecoveryId, RunYear, Fishery, AdjustedEstimatedNumber), by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))
 mrp_CAS_estimate_mis<- mrp_CAS_estimate_mismatch_trim_join %>% add_column(diff_estimates= abs(mrp_CAS_estimate_mismatch_trim_join$AdjustedEstimatedNumber - mrp_CAS_estimate_mismatch_trim_join$cwt_estimate)) %>%  relocate(Fishery, .before = cwt_estimate) %>% arrange(desc(diff_estimates))
 
-#Where are the mismatches the most common?  
+#4.2 to 4.4 Where are the mismatches the most common?  
 mrp_CAS_estimate_mis_Fishery<- mrp_CAS_estimate_mis %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
 mrp_CAS_estimate_mis_RecoverySite<-mrp_CAS_estimate_mis %>% group_by(rec_location_code) %>% summarise(n= n())%>% arrange(desc(n))
 mrp_CAS_estimate_mis_recovery_year<-mrp_CAS_estimate_mis %>% group_by(recovery_year) %>% summarise(n= n())%>% arrange(desc(n))
 
-# Mismatch: Location
+# Issue 5 Mismatch: Location
 # Which recovery id/year combos in MRP have a different value for the recovery location than in the CAS database
 mrp_CAS_location_mismatch<-anti_join(mrp_yes_CAS_recid,CAS_yes_MRP_recid, by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear", "rec_location_code"="RecoverySite") )
 
-# Create a table to lay out the differences more easily
+# 5.1 Create a table to lay out the differences more easily
 mrp_CAS_location_mismatch_trim<- mrp_CAS_location_mismatch %>% select(recovery_id, recovery_year, tag_code,rec_location_code)
 mrp_CAS_location_mismatch_trim_join<-left_join(mrp_CAS_location_mismatch_trim, CAS_yes_MRP_recid %>% select (RecoveryId, RunYear, Fishery, RecoverySite), by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))%>%  relocate(Fishery, .before = rec_location_code)
 mrp_CAS_location_mismatch_trim_join
 
-#Where are the mismatches the most common?  
+# 5.2 and 5.3 Where are the mismatches the most common?  
 mrp_CAS_location_mis_Fishery<- mrp_CAS_location_mismatch_trim_join %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
 mrp_CAS_location_mis_recovery_year<-mrp_CAS_location_mismatch_trim_join %>% group_by(recovery_year) %>% summarise(n= n())%>% arrange(desc(n))
 
-# Mismatch: PSC fishery ID
+# Issue 6 Mismatch: PSC fishery ID
 # Which recovery id/year combos in MRP have a different value for the psc fishery ID than in the CAS database
 CAS_yes_MRP_recid$CWDBFishery<-as.integer(CAS_yes_MRP_recid$CWDBFishery)
 mrp_CAS_pscfishery_mismatch<-anti_join(mrp_yes_CAS_recid,CAS_yes_MRP_recid, by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear", "psc_fishery_id"="CWDBFishery"))
 
-# Create a table to lay out the differences more easily
+# 6.1 Create a table to lay out the differences more easily
 mrp_CAS_pscfishery_mismatch_trim<- mrp_CAS_pscfishery_mismatch %>% select(recovery_id, recovery_year, tag_code,psc_fishery_id)
 mrp_CAS_pscfishery_mismatch_trim_join<-left_join(mrp_CAS_pscfishery_mismatch_trim, CAS_yes_MRP_recid %>% select (RecoveryId, RunYear, Fishery, CWDBFishery), by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))%>%  relocate(Fishery, .before = psc_fishery_id)
 mrp_CAS_pscfishery_mismatch_trim_join
 
-# Where are the mismatches most common?
+# 6.2 Where are the mismatches most common?
 mrp_CAS_pscfishery_mis_Fishery<- mrp_CAS_pscfishery_mismatch_trim_join %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
+
+
+# Summary -----------------------------------------------------------------
 
 
 #Summary table
@@ -219,5 +222,3 @@ sheet_list_compare_CAS_MRP<-list(Summary=compare_CAS_MRP_summary,
                                  "6.2 - fishery" = mrp_CAS_pscfishery_mis_Fishery)
 
 writexl::write_xlsx(sheet_list_compare_CAS_MRP, path="MRP_vs_CAS_QC.xlsx")
-
-#test commit
