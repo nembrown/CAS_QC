@@ -39,3 +39,7 @@ translate_sql(merge(x, y))
 fisherylkup<-tbl(casdb, "FisheryLookup")
 
 odbc::odbcListDrivers()
+
+
+# #Issue 2 Recovery Id and run years in CAS but not in MRP
+# CAS_not_MRP_recid<-anti_join(cwdbrecovery, mrp_recoveries_ind, by=c("RecoveryId"="recovery_id","RunYear"= "recovery_year"))
