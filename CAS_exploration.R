@@ -71,7 +71,7 @@ explore_summary <- explore_summary  %>%
                    add_row(Issue_ID="3", Issue="Tag Codes nonstandard length in WTC", Count=nrow(wire_tagcode_length), Definition="The wire tag codes in the WireTagCode table that are not 6 characters long (the standard length)") %>% 
                    add_row(Issue_ID="4", Issue="NA Tag Codes in CWD", Count=nrow(cwd_tagcode_nas), Definition="NA wiretagcodes in the CWD Recoveries table") %>% 
                    add_row(Issue_ID="5", Issue="Tag Codes nonstandard length in CWD", Count=nrow(cwd_tagcode_length), Definition="The wire tag codes in the CWD Recoveries table that are not 6 characters long (the standard length)") %>% 
-                   add_row(Issue_ID="6", Issue="Duplicate RecoveryID-year in CWD", Count=nrow(cwd_recid_dupes), Definition="There are Duplicate RecoveryID-year combinations in the CWD Recoveries table") %>% 
+                   add_row(Issue_ID="6", Issue="Duplicate RecoveryID-year-Agency in CWD", Count=nrow(cwd_recid_dupes), Definition="There are Duplicate RecoveryID-year-Agency combinations in the CWD Recoveries table") %>% 
                    add_row(Issue_ID="7", Issue="NA RecoveryID in CWD", Count=nrow(cwd_recid_nas), Definition="There are NA RecoveryIDs in the CWD Recoveries table") %>% 
                    add_row(Issue_ID="8", Issue="Tag Codes in CWD not in WTC", Count=nrow(cwd_notin_wire), Definition="Wire Tag Codes in the CWD Recoveries table but not in the WireTagCode table") %>% 
                    add_row(Issue_ID="9", Issue="Tag Codes in WTC not in CWD", Count=nrow(wire_notin_cwb), Definition="Wire Tag Codes in the WireTagCodes table but not in the CWD Recoveries table")
@@ -82,7 +82,7 @@ sheet_list<-list(Summary=explore_summary,
                  "3 - Nonstand_TagCodes_WTC" = wire_tagcode_length,
                  "4 - NA_TagCodes_CWD"=cwd_tagcode_nas, 
                  "5 - Nonstand_TagCodes_CWD" = cwd_tagcode_length,
-                 "6 - Duplicate_RecID_year_CWD"=cwd_recid_dupes , 
+                 "6 - Duplicate_RecIDyrAg_CWD"=cwd_recid_dupes , 
                  "7 - NA_RecID_CWD "= cwd_recid_nas, 
                  "8 - TagCodes_in_CWD_notin_WTC"=cwd_notin_wire, 
                  "9 - TagCodes_in_WTC_notin_CWD"=wire_notin_cwb)
@@ -112,7 +112,7 @@ mrp_not_CAS_recid<-anti_join(mrp_recoveries_ind, cwdbrecovery, by=c("recovery_id
 mrp_not_CAS_recid_year<- mrp_not_CAS_recid %>% group_by(recovery_year) %>% summarise(n= n()) %>% arrange(desc(n))
 mrp_not_CAS_recid_location<- mrp_not_CAS_recid %>% group_by(rec_location_code) %>% summarise(n= n()) %>% arrange(desc(n))
 
-#Issue 2 This returns a lot but I think we need to compare to just DFO recoveries because that's all that's in MRP
+#Issue 2 Recovery Id and run years in dfo recoveries of CAS but not in dfo recoveries of MRP
 dfo_CAS_not_MRP_recid<-anti_join(dfo_cwdbrecovery, mrp_recoveries_ind, by=c("RecoveryId"="recovery_id","RunYear"= "recovery_year"))
 
 #2.1 and 2.2 Where are the mismatches the most common?  
