@@ -2,39 +2,16 @@
 # load libraries ----------------------------------------------------------
 
 library(odbc)
-library(tidyverse)
 # remotes::install_git("https://github.com/Pacific-salmon-assess/tagFisheryMapping")
 library(tagFisheryMapping)
+library(dplyr)
 library(dbplyr)
 library(janitor)
-library(xlsx)
 library(purrr)
 library(writexl)
-library(stringr)
 
-
-# Open database connection ------------------------------------------------
-
-openCasConnection <- function(db_filename) {
-  if (!requireNamespace("odbc", quietly = TRUE)) {
-    stop("The package 'odbc' is needed for this function to work -
-         and may only work in MS Windows. Please install it.",
-         call. = FALSE)
-  }
-  
-  driver_name <-
-    paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
-           "DBQ=",
-           db_filename)
-  
-  db_conn <- dbConnect(odbc(), .connection_string = driver_name)
-  return(db_conn)
-}
-
-
-casdb<-openCasConnection(file.path(getwd(), "CAMP2022BE.accdb"))
+casdb<-openCasConnection(file.path(getwd(), "CAMP2021BE.accdb"))
 dbListTables(casdb)
-
 
 # Explorations in CAS ------------------------------------------------------------
 # Pull tables from CAS
@@ -47,13 +24,13 @@ wiretagcode<- wiretagcode %>% as_tibble()
 cwdbrecovery<- cwdbrecovery %>% as_tibble()
 wiretagcode_unq<-wiretagcode %>% select(TagCode) 
 cwdbrecovery_unq<-cwdbrecovery %>% select(TagCode)
-  
+
 #Explorations
 wire_dupes<-wiretagcode %>% get_dupes(TagCode)
 wire_tagcode_nas<-wiretagcode %>% filter(is.na(TagCode))
-wire_tagcode_length<-wiretagcode %>% add_column(wt_string = str_length(wiretagcode$TagCode))%>% filter(wt_string != 6)
+wire_tagcode_length<- wiretagcode %>% mutate(wt_string = nchar(TagCode))%>% filter(wt_string != 6)
 cwd_tagcode_nas<-cwdbrecovery %>% filter(is.na(TagCode))
-cwd_tagcode_length<-cwdbrecovery %>% add_column(wt_string = str_length(cwdbrecovery$TagCode))%>% filter(wt_string != 6)
+cwd_tagcode_length<-cwdbrecovery %>% mutate(wt_string = nchar(TagCode))%>% filter(wt_string != 6)
 cwd_recid_dupes<-cwdbrecovery %>% get_dupes(RecoveryId, RunYear, Agency)
 cwd_recid_nas<-cwdbrecovery %>% filter(is.na(RecoveryId))
 cwd_notin_wire<-cwdbrecovery %>% filter(TagCode %notin% wiretagcode_unq$TagCode)
@@ -61,20 +38,21 @@ wire_notin_cwb<-wiretagcode  %>% filter(TagCode %notin% cwdbrecovery_unq$TagCode
 
 
 #Summary table
-explore_summary <- data.frame(Issue_ID=character(), Issue=character(), Count=integer(),
-                 Definition=character(), 
-                 stringsAsFactors=FALSE)
+explore_summary <- tibble(Issue_ID=character(), 
+                          Issue=character(), 
+                          Count=integer(),
+                          Definition=character())
 
 explore_summary <- explore_summary  %>% 
-                   add_row(Issue_ID="1", Issue="Duplicate Tag Codes in WTC", Count=nrow(wire_dupes), Definition="Duplicate wire tag codes in the WireTagCode table") %>% 
-                   add_row(Issue_ID="2", Issue="NA Tag Codes in WTC", Count=nrow(wire_tagcode_nas), Definition="NA wire tag codes in the WireTagCode table") %>% 
-                   add_row(Issue_ID="3", Issue="Tag Codes nonstandard length in WTC", Count=nrow(wire_tagcode_length), Definition="The wire tag codes in the WireTagCode table that are not 6 characters long (the standard length)") %>% 
-                   add_row(Issue_ID="4", Issue="NA Tag Codes in CWD", Count=nrow(cwd_tagcode_nas), Definition="NA wiretagcodes in the CWD Recoveries table") %>% 
-                   add_row(Issue_ID="5", Issue="Tag Codes nonstandard length in CWD", Count=nrow(cwd_tagcode_length), Definition="The wire tag codes in the CWD Recoveries table that are not 6 characters long (the standard length)") %>% 
-                   add_row(Issue_ID="6", Issue="Duplicate RecoveryID-year-Agency in CWD", Count=nrow(cwd_recid_dupes), Definition="There are Duplicate RecoveryID-year-Agency combinations in the CWD Recoveries table") %>% 
-                   add_row(Issue_ID="7", Issue="NA RecoveryID in CWD", Count=nrow(cwd_recid_nas), Definition="There are NA RecoveryIDs in the CWD Recoveries table") %>% 
-                   add_row(Issue_ID="8", Issue="Tag Codes in CWD not in WTC", Count=nrow(cwd_notin_wire), Definition="Wire Tag Codes in the CWD Recoveries table but not in the WireTagCode table") %>% 
-                   add_row(Issue_ID="9", Issue="Tag Codes in WTC not in CWD", Count=nrow(wire_notin_cwb), Definition="Wire Tag Codes in the WireTagCodes table but not in the CWD Recoveries table")
+  add_row(Issue_ID="1", Issue="Duplicate Tag Codes in WTC", Count=nrow(wire_dupes), Definition="Duplicate wire tag codes in the WireTagCode table") %>% 
+  add_row(Issue_ID="2", Issue="NA Tag Codes in WTC", Count=nrow(wire_tagcode_nas), Definition="NA wire tag codes in the WireTagCode table") %>% 
+  add_row(Issue_ID="3", Issue="Tag Codes nonstandard length in WTC", Count=nrow(wire_tagcode_length), Definition="The wire tag codes in the WireTagCode table that are not 6 characters long (the standard length)") %>% 
+  add_row(Issue_ID="4", Issue="NA Tag Codes in CWD", Count=nrow(cwd_tagcode_nas), Definition="NA wiretagcodes in the CWD Recoveries table") %>% 
+  add_row(Issue_ID="5", Issue="Tag Codes nonstandard length in CWD", Count=nrow(cwd_tagcode_length), Definition="The wire tag codes in the CWD Recoveries table that are not 6 characters long (the standard length)") %>% 
+  add_row(Issue_ID="6", Issue="Duplicate RecoveryID-year-Agency in CWD", Count=nrow(cwd_recid_dupes), Definition="There are Duplicate RecoveryID-year-Agency combinations in the CWD Recoveries table") %>% 
+  add_row(Issue_ID="7", Issue="NA RecoveryID in CWD", Count=nrow(cwd_recid_nas), Definition="There are NA RecoveryIDs in the CWD Recoveries table") %>% 
+  add_row(Issue_ID="8", Issue="Tag Codes in CWD not in WTC", Count=nrow(cwd_notin_wire), Definition="Wire Tag Codes in the CWD Recoveries table but not in the WireTagCode table") %>% 
+  add_row(Issue_ID="9", Issue="Tag Codes in WTC not in CWD", Count=nrow(wire_notin_cwb), Definition="Wire Tag Codes in the WireTagCodes table but not in the CWD Recoveries table")
 
 sheet_list<-list(Summary=explore_summary,
                  "1 - Duplicate_TagCode_WTC"=wire_dupes, 
@@ -125,7 +103,7 @@ dfo_CAS_not_MRP_recid_RecoverySite<- dfo_CAS_not_MRP_recid %>% group_by(Recovery
 mrp_yes_CAS_recid<- anti_join(mrp_recoveries_ind, mrp_not_CAS_recid, by=c("recovery_id", "recovery_year") )
 
 #and Work only with the ones in CAS that are in MRP
-CAS_yes_MRP_recid<-anti_join(cwdbrecovery, CAS_not_MRP_recid, by=c("RecoveryId","RunYear"))
+CAS_yes_MRP_recid<-anti_join(cwdbrecovery, dfo_CAS_not_MRP_recid, by=c("RecoveryId","RunYear"))
 
 # Issue 3 Mismtach: CWT_estimate
 #which recovery id/year combos in MRP have a different value for the cwt estimate than the CAS database
@@ -134,7 +112,7 @@ mrp_CAS_estimate_mismatch<-anti_join(mrp_yes_CAS_recid,CAS_yes_MRP_recid, by=c("
 # 3.1 Create a table with just recovery id, year and the two estimates, sorted by the largest difference between estimates
 mrp_CAS_estimate_mismatch_trim<- mrp_CAS_estimate_mismatch %>% select(recovery_id, recovery_year, tag_code,rec_location_code, cwt_estimate )
 mrp_CAS_estimate_mismatch_trim_join<-left_join(mrp_CAS_estimate_mismatch_trim, CAS_yes_MRP_recid %>% select (RecoveryId, RunYear, Fishery, AdjustedEstimatedNumber), by=c("recovery_id"="RecoveryId", "recovery_year"="RunYear"))
-mrp_CAS_estimate_mis<- mrp_CAS_estimate_mismatch_trim_join %>% add_column(diff_estimates= abs(mrp_CAS_estimate_mismatch_trim_join$AdjustedEstimatedNumber - mrp_CAS_estimate_mismatch_trim_join$cwt_estimate)) %>%  relocate(Fishery, .before = cwt_estimate) %>% arrange(desc(diff_estimates))
+mrp_CAS_estimate_mis<- mrp_CAS_estimate_mismatch_trim_join %>% mutate(diff_estimates= abs(mrp_CAS_estimate_mismatch_trim_join$AdjustedEstimatedNumber - mrp_CAS_estimate_mismatch_trim_join$cwt_estimate)) %>%  relocate(Fishery, .before = cwt_estimate) %>% arrange(desc(diff_estimates))
 
 #3.2 to 3.4 Where are the mismatches the most common?  
 mrp_CAS_estimate_mis_Fishery<- mrp_CAS_estimate_mis %>% group_by(Fishery) %>% summarise(n= n()) %>% arrange(desc(n))
@@ -172,9 +150,11 @@ mrp_CAS_pscfishery_mis_Fishery<- mrp_CAS_pscfishery_mismatch_trim_join %>% group
 
 
 #Summary table
-compare_CAS_MRP_summary <- data.frame(Issue_category=character(), Issue_ID=character(), Issue=character(), Count=integer(),
-                                      Definition=character(), 
-                                      stringsAsFactors=FALSE)
+compare_CAS_MRP_summary <- tibble(Issue_category=character(), 
+                                  Issue_ID=character(), 
+                                  Issue=character(), 
+                                  Count=integer(),
+                                  Definition=character())
 
 compare_CAS_MRP_summary  <- compare_CAS_MRP_summary   %>% 
   add_row(Issue_category= "Missing", Issue_ID="1", Issue="Recovery id by year in MRP not CAS", Count=nrow(mrp_not_CAS_recid), Definition="Recovery Id and run year combinations that are in MRP database but not in CAS database ") %>% 
@@ -195,8 +175,8 @@ compare_CAS_MRP_summary  <- compare_CAS_MRP_summary   %>%
   add_row(Issue_category= "Altered", Issue_ID="5", Issue="psc fishery id mismatch value MRP and CAS", Count=nrow(mrp_CAS_pscfishery_mismatch), Definition="Mismatches in psc_fishery_id in MRP and CWDBFishery in CAS") %>% 
   add_row(Issue_category= "Altered", Issue_ID="5.1", Issue="psc fishery id mismatch value MRP and CAS - comparison table", Count=nrow(mrp_CAS_pscfishery_mismatch_trim_join), Definition="Mismatches in psc_fishery_id in MRP and CWDBFishery in CAS, comparison table") %>% 
   add_row(Issue_category= "Altered", Issue_ID="5.2", Issue="psc fishery id mismatch value MRP and CAS - fishery", Count=nrow(mrp_CAS_pscfishery_mis_Fishery), Definition="Mismatches in psc_fishery_id in MRP and CWDBFishery in CAS, summarized by fishery")
-    
-  
+
+
 sheet_list_compare_CAS_MRP<-list(Summary=compare_CAS_MRP_summary,
                                  "1 - RecID_MRP_not_CAS"= mrp_not_CAS_recid,
                                  "1.1 - year"= mrp_not_CAS_recid_year,
