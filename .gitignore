@@ -51,3 +51,6 @@ vignettes/*.pdf
 #folder nicks code
 /Nick_code
 
+#project
+*.Rproj
+
